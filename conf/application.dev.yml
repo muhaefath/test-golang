@@ -1,0 +1,9 @@
+postgres:
+  database: test-golang-development
+  username: postgres
+  password: mysecret
+  host: postgres
+  max_conn: 10
+  max_idle_conn: 10
+  timeout: 3
+  pool_timeout: 10
