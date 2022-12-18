@@ -32,4 +32,8 @@ http://localhost:1234
 4. password: mysecret
 5. database: test-golang-development
 
+## Postman
+
+https://documenter.getpostman.com/view/5139862/2s8YzZNyAX
+
 ![Alt text](/design/test-golang1.png)
