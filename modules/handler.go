@@ -1,136 +1,120 @@
 package modules
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"test-golang/controllers/requests"
 	"test-golang/controllers/responses"
-	"test-golang/models"
-	"test-golang/utils/httpclient"
+	conveter "test-golang/utils/converter"
 	"time"
 )
 
-const TimeLayoutRFC3339Milli = "2006-01-02T15:04:05.999Z07:00"
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-type bookHandler struct {
-	pickUpHistoryOrmer models.PickUpHistoryOrmer
-	client             Client
+type converterHandler struct {
 }
 
-func NewBookHandler(pickUpHistoryOrmer models.PickUpHistoryOrmer) BookHandler {
-	clientNew := NewClient(httpclient.NewDoer())
-	return &bookHandler{
-		pickUpHistoryOrmer: pickUpHistoryOrmer,
-		client:             clientNew,
-	}
+func NewConverterHandler() ConverterHandler {
+
+	return &converterHandler{}
 }
 
-type BookHandler interface {
-	GetBookByGenre(genre string, offset int, limit int) ([]*responses.Book, error)
-	PickUpBook(request requests.PickUpRequest) error
-	ReturnBook(request requests.ReturnRequest) error
+type ConverterHandler interface {
+	ShortenUrl(request requests.UrlRequest) (string, error)
+	RedirectUrl(url string) (*conveter.ShortenUrlData, error)
+	StatsUrl(request requests.UrlRequest) (*responses.RedirectCountResponse, error)
 }
 
-func (h *bookHandler) GetBookByGenre(genre string, offset int, limit int) ([]*responses.Book, error) {
-	bookList := []*responses.Book{}
-	resp, _, err := h.client.GetListBookByGenre(limit, offset, genre)
-	if err != nil {
-		fmt.Println("err GetListBookByGenre", err.Error())
-		return nil, err
-	}
-
-	for _, book := range resp.Works {
-		authors := ""
-		for idx, value := range book.Authors {
-			if idx >= len(book.Authors)-1 {
-				if idx == 1 {
-					authors = authors + " "
-				}
-
-				authors = authors + "and " + value.Name
-				break
-			} else if idx == 0 {
-				authors = authors + value.Name
+func (h *converterHandler) ShortenUrl(request requests.UrlRequest) (string, error) {
+	tempShortenUrl := conveter.ShortenUrlMemory
+	shortenUrl := ""
+	for {
+		shortenUrl = RandStringRunes(6)
+		isExist := false
+		for _, value := range tempShortenUrl {
+			if value.ShortUrl == shortenUrl {
+				isExist = true
 			}
-
-			authors = authors + ", " + value.Name
 		}
 
-		bookList = append(bookList, &responses.Book{
-			Title:           book.Title,
-			CoverID:         book.CoverID,
-			CoverEditionKey: book.CoverEditionKey,
-			Authors:         authors,
-		})
+		if !isExist {
+			break
+		}
 	}
 
-	return bookList, nil
+	temp := conveter.ShortenUrlData{
+		OrginalUrl:    request.RequestUrl,
+		RedirectCount: 0,
+		CreatedAt:     time.Now(),
+		ShortUrl:      shortenUrl,
+	}
+
+	tempShortenUrl = append(tempShortenUrl, &temp)
+
+	tempShortenUrlss, _ := json.Marshal(tempShortenUrl)
+	fmt.Println("current list url 1: ", string(tempShortenUrlss))
+
+	conveter.ShortenUrlMemory = tempShortenUrl
+
+	return temp.ShortUrl, nil
 }
 
-func (h *bookHandler) PickUpBook(request requests.PickUpRequest) error {
-	pickUpAt, err := time.Parse(TimeLayoutRFC3339Milli, request.PickUpAt)
-	if err != nil {
-		fmt.Println("err Parse", err.Error())
-		return err
+func (h *converterHandler) RedirectUrl(url string) (*conveter.ShortenUrlData, error) {
+	tempShortenUrl := conveter.ShortenUrlMemory
+
+	isExist := false
+	resultUrl := conveter.ShortenUrlData{}
+	for _, value := range tempShortenUrl {
+		if value.ShortUrl == url {
+			isExist = true
+			resultUrl = *value
+			value.RedirectCount++
+		}
 	}
 
-	pickUpHistory, err := h.pickUpHistoryOrmer.GetByCoverID(request.CoverID)
-	if err != nil {
-		fmt.Println("err Upsert", err.Error())
-		return err
+	if !isExist {
+		return nil, errors.New("Url not found")
 	}
 
-	if pickUpHistory != nil && pickUpHistory.ReturnAt == nil {
-		err = errors.New("book still borow by others")
-		fmt.Println("err Upsert", err.Error())
-		return err
-	}
+	conveter.ShortenUrlMemory = tempShortenUrl
 
-	pickUp := models.PickUpHistory{
-		CoverID:  request.CoverID,
-		PickUpAt: pickUpAt,
-	}
+	tempShortenUrlss, _ := json.Marshal(tempShortenUrl)
+	fmt.Println("current list url 2: ", string(tempShortenUrlss))
 
-	_, err = h.pickUpHistoryOrmer.Upsert(&pickUp)
-	if err != nil {
-		fmt.Println("err Upsert", err.Error())
-		return err
-	}
-
-	return nil
+	return &resultUrl, nil
 }
 
-func (h *bookHandler) ReturnBook(request requests.ReturnRequest) error {
-	returnAt, err := time.Parse(TimeLayoutRFC3339Milli, request.ReturnAt)
-	if err != nil {
-		fmt.Println("err Parse", err.Error())
-		return err
+func (h *converterHandler) StatsUrl(request requests.UrlRequest) (*responses.RedirectCountResponse, error) {
+	tempShortenUrl := conveter.ShortenUrlMemory
+	isExist := false
+	resultUrl := responses.RedirectCountResponse{}
+	for _, value := range tempShortenUrl {
+		if value.ShortUrl == request.RequestUrl {
+			isExist = true
+			resultUrl = responses.RedirectCountResponse{
+				RedirectCount: value.RedirectCount,
+				CreatedAt:     value.CreatedAt,
+			}
+		}
 	}
 
-	pickUpHistory, err := h.pickUpHistoryOrmer.GetByCoverID(request.CoverID)
-	if err != nil {
-		fmt.Println("err Upsert", err.Error())
-		return err
+	if !isExist {
+		return nil, errors.New("Url not found")
 	}
 
-	if pickUpHistory == nil {
-		err = errors.New("pick up book not found")
-		fmt.Println("err Upsert", err.Error())
-		return err
+	tempShortenUrlss, _ := json.Marshal(tempShortenUrl)
+	fmt.Println("current list url 3: ", string(tempShortenUrlss))
+
+	return &resultUrl, nil
+}
+
+func RandStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 
-	if pickUpHistory != nil && pickUpHistory.ReturnAt != nil {
-		err = errors.New("book is returned")
-		fmt.Println("err Upsert", err.Error())
-		return err
-	}
-
-	pickUpHistory.ReturnAt = &returnAt
-	_, err = h.pickUpHistoryOrmer.Upsert(pickUpHistory)
-	if err != nil {
-		fmt.Println("err Upsert", err.Error())
-		return err
-	}
-
-	return nil
+	return string(b)
 }

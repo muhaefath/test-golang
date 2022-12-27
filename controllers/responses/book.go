@@ -1,15 +1,11 @@
 package responses
 
-type GetBook struct {
-	BaseResponse
-	Data []*Book `json:"data"`
-}
+import "time"
 
-type Book struct {
-	Title           string `json:"title"`
-	CoverID         int    `json:"cover_id"`
-	CoverEditionKey string `json:"cover_edition_key"`
-	Authors         string `json:"authors"`
+type RedirectCountResponse struct {
+	BaseResponse
+	RedirectCount int       `json:"redirect_count"`
+	CreatedAt     time.Time `json:"created_at "`
 }
 
 type BaseResponse struct {
