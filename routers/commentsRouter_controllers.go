@@ -7,28 +7,30 @@ import (
 
 func init() {
 
-	beego.GlobalControllerRouter["test-golang/controllers:UrlConvertController"] = append(beego.GlobalControllerRouter["test-golang/controllers:UrlConvertController"],
+	beego.GlobalControllerRouter["test-golang/controllers:BookController"] = append(beego.GlobalControllerRouter["test-golang/controllers:BookController"],
 		beego.ControllerComments{
-			Method:           "ShortenUrl",
-			Router:           `/shorten_url`,
+			Method:           "GetListBook",
+			Router:           `/get_list_book`,
+			AllowHTTPMethods: []string{"get"},
+			MethodParams: param.Make(
+				param.New("genre"),
+				param.New("offset"),
+				param.New("limit"),
+			),
+			Params: nil})
+	beego.GlobalControllerRouter["test-golang/controllers:BookController"] = append(beego.GlobalControllerRouter["test-golang/controllers:BookController"],
+		beego.ControllerComments{
+			Method:           "PickUpBook",
+			Router:           `/pick_up_book`,
 			AllowHTTPMethods: []string{"post"},
 			MethodParams: param.Make(
 				param.New("params", param.InBody),
 			),
 			Params: nil})
-	beego.GlobalControllerRouter["test-golang/controllers:UrlConvertController"] = append(beego.GlobalControllerRouter["test-golang/controllers:UrlConvertController"],
+	beego.GlobalControllerRouter["test-golang/controllers:BookController"] = append(beego.GlobalControllerRouter["test-golang/controllers:BookController"],
 		beego.ControllerComments{
-			Method:           "RedirectUrl",
-			Router:           `/redirect_url`,
-			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(
-				param.New("url"),
-			),
-			Params: nil})
-	beego.GlobalControllerRouter["test-golang/controllers:UrlConvertController"] = append(beego.GlobalControllerRouter["test-golang/controllers:UrlConvertController"],
-		beego.ControllerComments{
-			Method:           "StatsUrl",
-			Router:           `/stats_url`,
+			Method:           "ReturnBook",
+			Router:           `/return_book`,
 			AllowHTTPMethods: []string{"post"},
 			MethodParams: param.Make(
 				param.New("params", param.InBody),
